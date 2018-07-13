@@ -1,0 +1,105 @@
+---
+  - name: Install epel
+    yum:
+      name: "{{ item }}"
+      state: installed
+    with_items:
+      - https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+      - https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
+      - epel-release
+
+  - name: Install easy rsa
+    yum:
+      name: easy-rsa
+      state: installed
+      enablerepo: epel
+
+  - name: Install openvpn
+    yum:
+      name: openvpn
+      state: installed
+  
+  - name: Add iptable_nat module
+    command: modprobe iptable_nat
+  
+  - name: Allow ip forarding
+    shell: echo 1 > /proc/sys/net/ipv4/ip_forward
+  
+  - name: Add route
+    shell: iptables -t nat -A POSTROUTING -s 10.4.0.1/2 -o eth0 -j MASQUERADE && iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+
+  - name: Create openvpn directory
+    file:
+      path: "{{ easy_rsa_dir }}"
+      state: directory
+
+  - name: Copy easy-rsa
+    shell: cp -Rv /usr/share/easy-rsa/3.0.3/* .
+    args:
+      creates: "{{ easy_rsa_dir }}/easyrsa"
+      chdir: "{{ easy_rsa_dir }}"
+  
+  - name: Init PKI
+    command: ./easyrsa init-pki
+    args:
+      creates: "{{ easy_rsa_dir }}/pki"
+      chdir: "{{ easy_rsa_dir }}"
+  
+  - name: Create CA cert
+    shell: echo 'vpn-server' | ./easyrsa build-ca nopass
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/ca.crt"
+      chdir: "{{ easy_rsa_dir }}"
+
+  - name: Generate Deffie Helman key
+    command: ./easyrsa gen-dh
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/dh.pem"
+      chdir: "{{ easy_rsa_dir }}"
+
+  - name: Generate server key
+    shell: echo 'vpn-server' | ./easyrsa gen-req server nopass
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/private/server.key"
+      chdir: "{{ easy_rsa_dir }}"
+
+  - name: Sign client key by CA
+    shell: echo 'yes' | ./easyrsa sign-req server server
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/issued/server.crt"
+      chdir: "{{ easy_rsa_dir }}"
+
+  - name: Generate client key
+    shell: echo 'client' | ./easyrsa gen-req client nopass
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/private/client.key"
+      chdir: "{{ easy_rsa_dir }}"
+
+  - name: Sign client key by CA
+    shell: echo 'yes' | ./easyrsa sign-req client client
+    args:
+      creates: "{{ easy_rsa_dir }}/pki/issued/client.crt"
+      chdir: "{{ easy_rsa_dir }}"
+  
+  - name: Generate a TLS key for perfect forward secrecy 
+    command: openvpn --genkey --secret pfs.key
+    args:
+      chdir: "{{ openvpn_dir }}"
+      creates: "{{ openvpn_dir }}/pfs.key"
+
+  - name: Copy OpenVPN server.conf and server.sh
+    copy:
+      src: "{{ item }}"
+      dest: "{{ openvpn_dir }}/{{ item }}"
+    with_items:
+      - server.conf
+      - server.sh
+  
+  - name: Start OpenVPN
+    service:
+      name: openvpn@server.service
+      enabled: yes
+      state: started
+
+
+      

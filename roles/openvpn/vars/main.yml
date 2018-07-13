@@ -1,0 +1,4 @@
+---
+
+openvpn_dir: /etc/openvpn
+easy_rsa_dir: "{{ openvpn_dir }}/easy-rsa"
