@@ -1,0 +1,45 @@
+--- 
+
+- name: Issue client cert
+  hosts: tag_Type_VPN
+  become: yes
+  vars_prompt:
+    - name: client_name
+      prompt: "Client name"
+
+  tasks:
+    - name: Gather facts
+      ec2_metadata_facts:
+
+    - name: Generate client key
+      shell: echo '{{ client_name }}' | ./easyrsa gen-req {{ client_name }} nopass
+      args:
+        creates: "{{ easy_rsa_dir }}/pki/private/{{ client_name }}.key"
+        chdir: "{{ easy_rsa_dir }}"
+
+    - name: Sign client key by CA
+      shell: echo 'yes' | ./easyrsa sign-req client {{ client_name }}
+      args:
+        creates: "{{ easy_rsa_dir }}/pki/issued/{{ client_name }}.crt"
+        chdir: "{{ easy_rsa_dir }}"
+      notify:
+        - restart vpn
+
+    - name: Copy required files
+      fetch:
+        src: "{{ item }}"
+        dest: tmp/{{ client_name }}/{{ item | basename }}
+        flat: yes
+      loop:
+        - "{{ easy_rsa_dir }}/pki/dh.pem"
+        - "{{ easy_rsa_dir }}/pki/ca.crt"
+        - "{{ easy_rsa_dir }}/pki/private/{{ client_name }}.key"
+        - "{{ easy_rsa_dir }}/pki/issued/{{ client_name }}.crt"
+        - "{{ openvpn_dir }}/pfs.key"
+
+    - name: Make configuration file
+      become: no
+      local_action: "template src=client.ovpn.j2 dest=tmp/{{ client_name }}/{{ vpn_name }}.ovpn"
+
+  handlers:
+    - include: handlers.yml

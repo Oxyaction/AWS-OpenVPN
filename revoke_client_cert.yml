@@ -1,0 +1,27 @@
+---
+
+- name: Remove client vpn certificate
+  hosts: tag_Type_VPN
+  become: yes
+  vars_prompt:
+    - name: client_name
+      prompt: "Client name"
+
+  tasks:
+    - name: Revoke certificate
+      shell: echo 'yes' | ./easyrsa revoke {{ client_name }}
+      args:
+        chdir: "{{ easy_rsa_dir }}"
+    
+    - name: Update crl
+      command: ./easyrsa gen-crl
+      args:
+        chdir: "{{ easy_rsa_dir }}"
+      notify:
+        - restart vpn
+
+
+
+  handlers:
+    - include: handlers.yml
+

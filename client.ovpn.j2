@@ -1,10 +1,10 @@
 client
 dev tun
 proto udp
-remote <<REMOTE_IP>> 1194  
+remote {{ ansible_ec2_public_ipv4 }} 1194  
 ca ca.crt
-cert client.crt
-key client.key
+cert {{ client_name }}.crt
+key {{ client_name }}.key
 tls-version-min 1.2
 tls-cipher TLS-ECDHE-RSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-ECDSA-WITH-AES-128-GCM-SHA256:TLS-ECDHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256
 cipher AES-256-CBC
@@ -14,7 +14,7 @@ auth-retry none
 nobind
 persist-key
 persist-tun
-ns-cert-type server
+remote-cert-tls server
 comp-lzo
 verb 3
 tls-client

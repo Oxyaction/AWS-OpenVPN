@@ -1,0 +1,6 @@
+---
+
+vpn_name: my_vpn
+openvpn_dir: /etc/openvpn
+easy_rsa_dir: "{{ openvpn_dir }}/easy-rsa"
+ansible_ssh_user: ec2-user

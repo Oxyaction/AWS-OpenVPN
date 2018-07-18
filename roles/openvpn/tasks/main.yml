@@ -3,10 +3,11 @@
     yum:
       name: "{{ item }}"
       state: installed
-    with_items:
+    loop:
       - https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
-      - https://dl.fedoraproject.org/pub/epel/epel-release-latest-6.noarch.rpm
-      - epel-release
+
+  - name: Clean all
+    command: yum clean all
 
   - name: Install easy rsa
     yum:
@@ -69,32 +70,28 @@
       creates: "{{ easy_rsa_dir }}/pki/issued/server.crt"
       chdir: "{{ easy_rsa_dir }}"
 
-  - name: Generate client key
-    shell: echo 'client' | ./easyrsa gen-req client nopass
-    args:
-      creates: "{{ easy_rsa_dir }}/pki/private/client.key"
-      chdir: "{{ easy_rsa_dir }}"
-
-  - name: Sign client key by CA
-    shell: echo 'yes' | ./easyrsa sign-req client client
-    args:
-      creates: "{{ easy_rsa_dir }}/pki/issued/client.crt"
-      chdir: "{{ easy_rsa_dir }}"
-  
   - name: Generate a TLS key for perfect forward secrecy 
     command: openvpn --genkey --secret pfs.key
     args:
       chdir: "{{ openvpn_dir }}"
       creates: "{{ openvpn_dir }}/pfs.key"
 
-  - name: Copy OpenVPN server.conf and server.sh
+  - name: Creating revoked certificates list
+    command: ./easyrsa gen-crl
+    args:
+      chdir: "{{ easy_rsa_dir }}"
+      creates: "{{ easy_rsa_dir }}/pki/crl.pem"
+
+  - name: Copy OpenVPN server.sh
     copy:
-      src: "{{ item }}"
-      dest: "{{ openvpn_dir }}/{{ item }}"
-    with_items:
-      - server.conf
-      - server.sh
-  
+      src: server.sh
+      dest: "{{ openvpn_dir }}/server.sh"
+      
+  - name: Copy OpenVPN server.conf
+    template:
+      src: server.conf.j2
+      dest: "{{ openvpn_dir }}/server.conf"
+
   - name: Start OpenVPN
     service:
       name: openvpn@server.service

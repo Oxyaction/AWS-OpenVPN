@@ -1,11 +1,10 @@
 port 1194
 proto udp
 dev tun
-ca /etc/openvpn/easy-rsa/pki/ca.crt
-cert /etc/openvpn/easy-rsa/pki/issued/server.crt
-key /etc/openvpn/easy-rsa/pki/private/server.key
-dh /etc/openvpn/easy-rsa/pki/dh.pem
-crl-verify /etc/openvpn/easy-rsa/pki/crl.pem
+ca {{ easy_rsa_dir }}/pki/ca.crt
+cert {{ easy_rsa_dir }}/pki/issued/server.crt
+key {{ easy_rsa_dir }}/pki/private/server.key
+dh {{ easy_rsa_dir }}/pki/dh.pem
 cipher AES-256-CBC
 auth SHA512
 server 10.8.0.0 255.255.255.0
